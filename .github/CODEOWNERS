@@ -1,0 +1,8 @@
+# Fallback
+* @player-ui/reviewers
+
+# Player
+/player/ @player-ui/reviewers
+
+# Tooling
+/tools/ @player-ui/tooling-reviewers
