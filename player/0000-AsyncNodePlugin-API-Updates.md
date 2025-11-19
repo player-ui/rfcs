@@ -31,7 +31,7 @@ There are 4 main motivations with these changes:
 
 To simplify this and reduce setup steps, the `AsyncNodePluginPlugin` class can be removed and its features can be moved to `AsyncNodePlugin` so that there are no references across plugins.
 
-`AsyncNodePlugin` can have its list of plugins removed for now to reduce options in the constructor.
+`AsyncNodePlugin` can have its list of plugins removed to reduce options in the constructor.
 
 ## Changes to the AsyncNodePlugin Hooks
 
@@ -111,7 +111,7 @@ Using these operations, the `AsyncNodePlugin` will provide an object that can tr
 
 ### How do we avoid breaking changes?
 
-The changes above, if made directly as suggested, will cause breaking changes in the async node package. To cover for this there are a couple approaches:
+The changes in this RFC, if made directly as suggested, will cause breaking changes in the async node package. To cover for this there are a couple approaches:
 
 #### 1. New Plugin
 
