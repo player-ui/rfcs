@@ -38,7 +38,7 @@ To simplify this and reduce setup steps, the `AsyncNodePluginPlugin` class can b
 The core design here would be to remove the `onAsyncNodeError` hook, and update `onAsyncNode` to something like:
 ```ts
 
-/** function type for updating async content. This type matches the current update of `onAsyncNode` but will come up in a later stage for how it can be changed as well. */
+/** function type for updating async content. This type matches the current update of `onAsyncNode`. */
 export type ContentUpdateFunction = (content: any) => void;
 
 export interface AsyncNodeHandler {
@@ -58,36 +58,6 @@ export type AsyncNodePluginHooks = {
 
 In this case, the `onAsyncNode` hook has been changed to be a `Sync` hook rather than an `Async` hook. This allows for handlers for each async node to be determined synchronously and gives us the ability to allow for an initial state of the async content without needing to trigger an additional update of the view. This also reduces the burden of promise management on users. Currently in order to ensure only your own plugin is managing a specific node, plugins must manage promises that aren't meant to resolve and call the update function as needed after that. This also allows us to reuse the same `onAsyncNode` hook as we make changes to what the `AsyncNodeHandler` type has down the line.
 
-## Changing the async node `update` function
-
-Updating an async node with new content causes the `AsyncNodePlugin` to parse the new content and produce new AST nodes. This works well for simple use cases, but makes managing lists of content difficult. To minimize perf issues, users must use async nodes for each new piece of content inserted into the list. Consider a case of messages being streamed into a collection. If a single async node is used to manage all content inserted into the collection, the time it takes to parse and update the view will increase with each new message. To minimize this impact, users need to insert a new async node for every message which makes certain list operations difficult.
-
-To fix this, replacing the `update` function with an `updater` object that supports some list-like operations for updating a single async node:
-
-```ts
-export interface AsyncNodeUpdater {
-  /** Sets the content for the async node, replacing any existing content. This works exactly as `update` does now. */
-  set: (content: any) => void;
-  /** Removes any content associated with the async node. */
-  delete: () => void;
-  /** Gets the current content */
-  getCurrentContent: () => any;
-
-  /** The following list-like operations only work if the content is an array. Throws an error otherwise. */
-
-  /** Pushes the content to the end of the array. */
-  push: (...content: any[]) => void;
-  /** Inserts all content at the index. */
-  insert: (index: number, ...content: any[]) => void;
-  /** Replaces existing content at an index. Throws if index out of bounds. */
-  replaceAt: (index: number, ...content: any[]) => void;
-  /** Removes the item at the index. Throws if index out of bounds */
-  removeAt: (index: number) => void;
-}
-```
-
-Using these operations, the `AsyncNodePlugin` will provide an object that can track changes and ensure AST nodes are properly cached and interact as intended with the view resolver's cache while only maintaining a single node.
-
 <!-- A detailed end-to-end design of the proposed system/changes -->
 
 # Risks
@@ -101,13 +71,6 @@ Using these operations, the `AsyncNodePlugin` will provide an object that can tr
 
 # Unknowns
 [unknowns]: #unknowns
-
-## AsyncNodeUpdater
-
-- How do we batch operations to prevent multiple updates from being triggered at once?
-- Do we want to handle `undefined` content as an empty list when using `push` instead of throwing?
-- Should the list operations include options that allow for iterating through multiple items? (ex. map, filter, etc.)
-- Should the list operations allow for something like splice or slice to remove many items at once?
 
 ### How do we avoid breaking changes?
 
@@ -134,16 +97,7 @@ For example, when an async node is first identified and we need a handler, call 
 # Alternatives Considered
 [alternatives-considered]: #alternatives-considered
 
-## AsyncNodeUpdater
-Alternatively to updating using content, we could require that users provide the AST themselves when updating an async node, providing the parse function and other necessary utils so they can still deal with regular json content coming from a service. This would let users keep a single multi-node that they update if they are trying to manipulate an array without the need for us to introduce functions for dealing with all of that. In this way we would still have an update function that looks more like:
-
-```ts
-export type AsyncNodeUpdateFunction = (node: Node.Node) => void;
-```
-
-Calling this would invalidate the resolver cache for the node at the top level, but for any multi-nodes or nodes with children this would preserve the cache for nested nodes as long as object references are maintained.
-
-This approach will create more discrepancies between the existing API and the updated API, and puts more burden on the users to understand how player's resolver cache interacts with any nodes they are adding or changing. If this is something we document well and can expect users to manage, than this simplifies the work needed on the plugin side and reduces the likelihood of needing future updates to support more list operations.
+N/A
 
 <!-- What, if any, alternate designs/approaches were considered -->
 
@@ -152,3 +106,9 @@ This approach will create more discrepancies between the existing API and the up
 
 N/A
 <!-- What, if any, does this RFC unlock in terms of new features/capabilities that might be out of scope for this decision specifically -->
+
+# Out of Scope
+
+## Changing the async node `update` function
+
+There is a lot to consider with this topic and we need more information on how users are using async capabilities before we push for a new implementation on this update function.
