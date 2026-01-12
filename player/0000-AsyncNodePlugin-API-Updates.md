@@ -13,7 +13,7 @@ The goal of this RFC is to remove the `AsyncNodePluginPlugin`, update the `onAsy
 <!-- One paragraph explanation of the feature -->
 
 # Motivation
-[motivation]: #motivationz
+[motivation]: #motivation
 
 There are 4 main motivations with these changes:
 1. Simplify setup and make any plugin needed for streaming capabilities have a clear purpose.
