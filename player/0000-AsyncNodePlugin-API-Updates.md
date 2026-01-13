@@ -15,11 +15,10 @@ The goal of this RFC is to remove the `AsyncNodePluginPlugin`, update the `onAsy
 # Motivation
 [motivation]: #motivation
 
-There are 4 main motivations with these changes:
+There are 3 main motivations with these changes:
 1. Simplify setup and make any plugin needed for streaming capabilities have a clear purpose.
 2. Make interacting with async nodes intuitive, removing confusing promise management as a step for managing control over individual nodes.
 3. Introduce an API for dealing with async content that we can more easily make changes to. Minimize the need for breaking changes in the future and simplify the deprecation path.
-4. Make managing lists of async content not require inserting many async nodes by providing better optimizations around parsing and resolving changing lists. 
 
 <!-- What, is the motivating factor behind this RFC. -->
 
@@ -56,7 +55,27 @@ export type AsyncNodePluginHooks = {
 }
 ```
 
-In this case, the `onAsyncNode` hook has been changed to be a `Sync` hook rather than an `Async` hook. This allows for handlers for each async node to be determined synchronously and gives us the ability to allow for an initial state of the async content without needing to trigger an additional update of the view. This also reduces the burden of promise management on users. Currently in order to ensure only your own plugin is managing a specific node, plugins must manage promises that aren't meant to resolve and call the update function as needed after that. This also allows us to reuse the same `onAsyncNode` hook as we make changes to what the `AsyncNodeHandler` type has down the line.
+There are some key differences between the existing `AsyncNodePlugin` and this approach. The following sections compare the differencces and explain the intent behind the new design:
+
+### Sync vs Async hooks
+
+This approach uses a `SyncBailHook` as opposed to the `AsyncSeriesBailHook` or `AsyncParallelBailHook` used previously. There were a few issues with these hooks. First, there is no way to differentiate in the existing hooks whether something returns `undefined` to declare that it has no intention of updating the async node versus returning `undefined` to explicitly render nothing in place of the async node. This is especially a problem with the `AsyncSeriesBailHook` as knowing when it can or should bail with multiple taps is difficult. Additionally the `AsyncParallelBailHook` is built on `Promise.race` which could lead to incosistent behaviour if multiple handlers exist for a specific node.
+
+With the `SyncBailHook` the intent is for plugin authors to first declare their intent to manage a specific async node. Returning `undefined` declares that they will not be handling it, and returning an `AsyncNodeHandler` gives us the object with the functions needed to actually manage the content in the async node.
+
+This does not remove the ability to do async operations. The hook itself is synchronous, but the intent here is that any async functionality is moved to the `start` of the `AysncNodeHandler`.
+
+### No Promise results
+
+The current `AsyncNodePlugin` allows for two approaches to updating your content and the way both interact with each other is not always clear. Returning a `Promise` that resolves to the content you want to display or using the `update` function that takes the same object. While using either works, it's also possible to use the `update` after the promise has resolved or rejected. There are no guidelines around when each is appropriate.
+
+The `Promise` result also has issues with no having a clear way of how to end it without updating the view. Resolving with `undefined` will clear the async content so there is no clear way to complete and cleanup the task.
+
+To simplify, reducing this to just using the `update` function creates one clear path to updating content while maintaining the flexibility of having any number of updates to a single async node.
+
+### Single object vs multiple hooks
+
+Having a single hook that returns a handler allows all related functionality for that async node to be grouped together. While technically more flexible to allow multiple hooks where each tackles one of the given functions (i.e. initial state, start, error) it is reasonable to expect that in most use cases, plugin authors will be trying to manage all aspects of an async node rather than delegating specific responsibilities to other plugins that may not have the context of any requests made to populate the node in the first place.
 
 <!-- A detailed end-to-end design of the proposed system/changes -->
 
@@ -64,7 +83,6 @@ In this case, the `onAsyncNode` hook has been changed to be a `Sync` hook rather
 [risks]: #risks
 
 - The sync hook approach loses the ability for multiple handlers to exist for a single async node. An alternative here to allow that would be to use a `SyncHook` that provides a `registerHandler` function, but allowing for multiple handlers might make it confusing when and how a specific node is getting updated.
-- Managing list operations on the `AsyncNodeUpdater` is always going to be more limited than managing an actual list and will likely require additional support with new options as new use cases come up.
 
 
 <!-- What are potential issues that could come from implementing this decision -->
