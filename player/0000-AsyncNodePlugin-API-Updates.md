@@ -24,6 +24,10 @@ There are 3 main motivations with these changes:
 
 # Design
 
+## Avoiding breaking changes
+
+The following updates are going to involve breaking changes when compared to the existing API. To mitigate this, the new hooks and setup should be included as a separate plugin, marked as experimental until we are ready to commit to the new approach and can deprecate and eventually remove the old plugin. This new plugin should be included in the same package as the existing `AsyncNodePlugin`
+
 ## Removing the AsyncNodePluginPlguin
 
 `AsyncNodePluginPlugin` currently provides most of the features a user would expect from the main `AsyncNodePlugin`. It ends up calling the hooks on `AsyncNodePlugin`, which keeps the features of both tightly coupled to each other. The name has also been a confusing point for users as they expect the `AsyncNodePluginPlugin` to provide some shortcuts to tapping into the `AsyncNodePlugin` to help with managing async nodes.
@@ -89,26 +93,6 @@ Having a single hook that returns a handler allows all related functionality for
 
 # Unknowns
 [unknowns]: #unknowns
-
-### How do we avoid breaking changes?
-
-The changes in this RFC, if made directly as suggested, will cause breaking changes in the async node package. To cover for this there are a couple approaches:
-
-#### 1. New Plugin
-
-Instead of changing anything in the existing plugins, mark those as deprecated and make a new plugin within the same package. This is likely to cause some code duplication for now, but does the best job of isolating the change.
-
-#### 2. Change within the plugins
-
-If we want the existing plugins to work with any new changes without having users migrate immediately, this will be more convenient. To support this there are a few things that will need to be done:
-
-- Instead of deleting `AsyncNodePluginPlugin`, mark it as deprecated. Still move all the code to `AsyncNodePlugin` so this essentially ends up being an empty class.
-- Do not remove the existing hooks. Add the new API as a new `asyncHandler` hook in addition to the existing hooks. Mark the old hooks as deprecated.
-- Mark the existing constructor of `AsyncNodePlugin` as deprecated in favour of something without the `plugins` array argument.
-
-To deal with the overlap between the new `asyncHandler` hook and the `onAsyncNode` and `onAsyncNodeError` hooks, any time one would be called, we should prefer using the result from `asyncHandler` first.
-
-For example, when an async node is first identified and we need a handler, call `asyncHandler` first, and only call `onAsyncNode` if that does not return a result. If an error occurs, check the handler for an `onError` function before calling `onAsyncNodeError` to handle it.
 
 <!-- What, if any, are the open questions that need to be worked through as part of the RFC Process -->
 
