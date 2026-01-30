@@ -11,7 +11,7 @@
 <!-- One paragraph explanation of the feature -->
 
 # Motivation
-[motivation]: #motivationz
+[motivation]: #motivation
 
 <!-- What, is the motivating factor behind this RFC. -->
 
